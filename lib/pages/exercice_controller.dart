@@ -101,24 +101,23 @@ class ExercicesController extends StateNotifier<ExercicesState> {
     state = state.copyWith(sommets: updated);
   }
 
-  void supprimerSommet(int id) {
-    final updatedSommets = state.sommets.where((s) => s.id != id).toList();
-    final updatedAretes = state.aretes.where((a) => a.source != id && a.destination != id).toList();
-    state = state.copyWith(sommets: updatedSommets, aretes: updatedAretes);
+  void reset() {
+    state = ExercicesState();
+    mode = Mode.none;
+    selectedSommetForArete = null;
   }
 
-  void supprimerArete(Arete a) {
-    final updatedAretes = state.aretes.where((ar) => ar != a).toList();
-    state = state.copyWith(aretes: updatedAretes);
+  /// Dijkstra
+  void runDijkstraAlgo(int startId, int endId) {
+    final path = _dijkstra(startId, endId);
+    state = state.copyWith(highlightedPath: path);
   }
 
-  /// Algorithme Dijkstra (simplifié)
-  List<int> dijkstra(int startId, int endId) {
+  List<int> _dijkstra(int startId, int endId) {
     final n = state.sommets.length;
     final dist = List<double>.filled(n, double.infinity);
     final prev = List<int?>.filled(n, null);
     dist[startId] = 0;
-
     final visited = List<bool>.filled(n, false);
 
     for (int i = 0; i < n; i++) {
@@ -132,7 +131,6 @@ class ExercicesController extends StateNotifier<ExercicesState> {
       }
       if (u == -1) break;
       visited[u] = true;
-
       for (final e in state.aretes.where((a) => a.source == u)) {
         final v = e.destination;
         final alt = dist[u] + e.weight;
@@ -152,12 +150,13 @@ class ExercicesController extends StateNotifier<ExercicesState> {
     return path;
   }
 
-  void runDijkstraAlgo(int startId, int endId) {
-    final path = dijkstra(startId, endId);
+  /// Bellman-Ford
+  void runBellmanFordAlgo(int startId) {
+    final path = _bellmanFord(startId);
     state = state.copyWith(highlightedPath: path);
   }
 
-  void runBellmanFordAlgo(int startId) {
+  List<int> _bellmanFord(int startId) {
     final n = state.sommets.length;
     final dist = List<double>.filled(n, double.infinity);
     final prev = List<int?>.filled(n, null);
@@ -180,10 +179,16 @@ class ExercicesController extends StateNotifier<ExercicesState> {
       path.insert(0, u);
       u = prev[u];
     }
+    return path;
+  }
+
+  /// DFS
+  void runDFSAlgo(int startId) {
+    final path = _dfs(startId);
     state = state.copyWith(highlightedPath: path);
   }
 
-  void runDFSAlgo(int startId) {
+  List<int> _dfs(int startId) {
     final n = state.sommets.length;
     final visited = List<bool>.filled(n, false);
     final path = <int>[];
@@ -197,10 +202,16 @@ class ExercicesController extends StateNotifier<ExercicesState> {
     }
 
     dfs(startId);
+    return path;
+  }
+
+  /// BFS
+  void runBFSAlgo(int startId) {
+    final path = _bfs(startId);
     state = state.copyWith(highlightedPath: path);
   }
 
-  void runBFSAlgo(int startId) {
+  List<int> _bfs(int startId) {
     final n = state.sommets.length;
     final visited = List<bool>.filled(n, false);
     final path = <int>[];
@@ -218,17 +229,93 @@ class ExercicesController extends StateNotifier<ExercicesState> {
         }
       }
     }
+    return path;
+  }
+
+  /// Floyd-Warshall (chemin le plus court entre toutes paires)
+  void runFloydWarshallAlgo() {
+    final n = state.sommets.length;
+    final dist = List.generate(n, (_) => List<double>.filled(n, double.infinity));
+    final next = List.generate(n, (_) => List<int?>.filled(n, null));
+
+    for (int i = 0; i < n; i++) {
+      dist[i][i] = 0;
+    }
+    for (final e in state.aretes) {
+      dist[e.source][e.destination] = e.weight;
+      next[e.source][e.destination] = e.destination;
+    }
+
+    for (int k = 0; k < n; k++) {
+      for (int i = 0; i < n; i++) {
+        for (int j = 0; j < n; j++) {
+          if (dist[i][k] + dist[k][j] < dist[i][j]) {
+            dist[i][j] = dist[i][k] + dist[k][j];
+            next[i][j] = next[i][k];
+          }
+        }
+      }
+    }
+
+    // Exemple : chemin de 0 à n-1
+    final path = <int>[];
+    int? u = 0;
+    final end = n - 1;
+    while (u != null && u != end) {
+      path.add(u);
+      u = next[u][end];
+    }
+    if (u != null) path.add(end);
     state = state.copyWith(highlightedPath: path);
   }
 
-  void reset() {
-    state = ExercicesState();
-    mode = Mode.none;
-    selectedSommetForArete = null;
+  /// Longest Path (DAG simplifié)
+  void runLongestPathAlgo() {
+    final n = state.sommets.length;
+    final dist = List<double>.filled(n, double.negativeInfinity);
+    final prev = List<int?>.filled(n, null);
+    dist[0] = 0;
+
+    final topoOrder = _topologicalSort();
+    for (final u in topoOrder) {
+      for (final e in state.aretes.where((a) => a.source == u)) {
+        if (dist[u] + e.weight > dist[e.destination]) {
+          dist[e.destination] = dist[u] + e.weight;
+          prev[e.destination] = u;
+        }
+      }
+    }
+
+    final path = <int>[];
+    int? u = n - 1;
+    while (u != null) {
+      path.insert(0, u);
+      u = prev[u];
+    }
+    state = state.copyWith(highlightedPath: path);
+  }
+
+  List<int> _topologicalSort() {
+    final n = state.sommets.length;
+    final visited = List<bool>.filled(n, false);
+    final order = <int>[];
+
+    void dfs(int u) {
+      visited[u] = true;
+      for (final e in state.aretes.where((a) => a.source == u)) {
+        if (!visited[e.destination]) dfs(e.destination);
+      }
+      order.insert(0, u);
+    }
+
+    for (int i = 0; i < n; i++) {
+      if (!visited[i]) dfs(i);
+    }
+    return order;
   }
 }
 
-/// Provider global
+/// Provider
 final exercicesProvider = StateNotifierProvider<ExercicesController, ExercicesState>(
       (ref) => ExercicesController(),
 );

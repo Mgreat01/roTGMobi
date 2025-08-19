@@ -1,22 +1,55 @@
 import 'package:flutter/material.dart';
-import 'exercice_controller.dart'; // pour les classes Sommet et Arete
+import 'exercice_controller.dart';
 
 class GraphCanvas extends StatelessWidget {
   final List<Sommet> sommets;
   final List<Arete> aretes;
+  final Sommet? selectedSommet;
+  final Function(Sommet) onSommetTap;
 
   const GraphCanvas({
     super.key,
     required this.sommets,
     required this.aretes,
+    required this.onSommetTap,
+    this.selectedSommet,
   });
 
   @override
   Widget build(BuildContext context) {
     return CustomPaint(
-      painter: _GraphPainter(sommets: sommets, aretes: aretes),
-      // Assure que le canvas prend toute la place dispo
-      child: const SizedBox.expand(),
+      painter: _GraphPainter(
+        sommets: sommets,
+        aretes: aretes,
+        selectedSommet: selectedSommet,
+      ),
+      child: Stack(
+        children: sommets
+            .map((s) => Positioned(
+          left: s.x - 15,
+          top: s.y - 15,
+          width: 30,
+          height: 30,
+          child: GestureDetector(
+            onTap: () => onSommetTap(s),
+            child: Container(
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: selectedSommet?.id == s.id
+                    ? Colors.red
+                    : Colors.blue,
+              ),
+              alignment: Alignment.center,
+              child: Text(
+                s.id.toString(),
+                style: const TextStyle(
+                    color: Colors.white, fontSize: 12),
+              ),
+            ),
+          ),
+        ))
+            .toList(),
+      ),
     );
   }
 }
@@ -24,22 +57,20 @@ class GraphCanvas extends StatelessWidget {
 class _GraphPainter extends CustomPainter {
   final List<Sommet> sommets;
   final List<Arete> aretes;
+  final Sommet? selectedSommet;
 
-  _GraphPainter({required this.sommets, required this.aretes});
+  _GraphPainter({
+    required this.sommets,
+    required this.aretes,
+    this.selectedSommet,
+  });
 
   @override
   void paint(Canvas canvas, Size size) {
-    // Peinture pour sommets
-    final nodePaint = Paint()
-      ..color = Colors.blue
-      ..style = PaintingStyle.fill;
-
-    // Peinture pour arêtes
     final edgePaint = Paint()
       ..color = Colors.black
-      ..strokeWidth = 2;
+      ..strokeWidth = 2.0;
 
-    // 1) Dessiner les arêtes
     for (final e in aretes) {
       if (e.source >= 0 &&
           e.source < sommets.length &&
@@ -50,26 +81,8 @@ class _GraphPainter extends CustomPainter {
         canvas.drawLine(a, b, edgePaint);
       }
     }
-
-    // 2) Dessiner les sommets + labels
-    for (final s in sommets) {
-      final center = Offset(s.x, s.y);
-      canvas.drawCircle(center, 12, nodePaint);
-
-      final tp = TextPainter(
-        text: TextSpan(
-          text: s.id.toString(),
-          style: const TextStyle(color: Colors.white, fontSize: 12),
-        ),
-        textDirection: TextDirection.ltr,
-      )..layout();
-      tp.paint(canvas, center - Offset(tp.width / 2, tp.height / 2));
-    }
   }
 
   @override
-  bool shouldRepaint(covariant _GraphPainter oldDelegate) {
-    // Redessine si la liste change (taille ou contenu)
-    return oldDelegate.sommets != sommets || oldDelegate.aretes != aretes;
-  }
+  bool shouldRepaint(covariant _GraphPainter oldDelegate) => true;
 }

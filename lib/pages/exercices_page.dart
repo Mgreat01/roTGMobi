@@ -8,39 +8,32 @@ class ExercicesPage extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final state = ref.watch(exercicesProvider); // état (sommets + arêtes)
-    final controller = ref.read(exercicesProvider.notifier); // actions
+    final state = ref.watch(exercicesProvider);
+    final controller = ref.read(exercicesProvider.notifier);
 
     return Scaffold(
       appBar: AppBar(title: const Text("Exercices Graphes")),
       body: Column(
         children: [
           Expanded(
-            child: Container(
-              color: Colors.grey[200],
+            child: GestureDetector(
+              onTapUp: (details) {
+                controller.ajouterSommet(
+                  details.localPosition.dx,
+                  details.localPosition.dy,
+                );
+              },
               child: GraphCanvas(
                 sommets: state.sommets,
                 aretes: state.aretes,
+                selectedSommet: state.selectedSommet,
+                onSommetTap: controller.selectSommet,
               ),
             ),
           ),
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              ElevatedButton(
-                onPressed: controller.ajouterSommet,
-                child: const Text("Ajouter sommet"),
-              ),
-              const SizedBox(width: 10),
-              ElevatedButton(
-                onPressed: () {
-                  if (state.sommets.length >= 2) {
-                    controller.ajouterArete(0, state.sommets.length - 1);
-                  }
-                },
-                child: const Text("Ajouter arête"),
-              ),
-              const SizedBox(width: 10),
               ElevatedButton(
                 onPressed: controller.reset,
                 child: const Text("Reset"),

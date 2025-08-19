@@ -21,19 +21,23 @@ class Arete {
 class ExercicesState {
   final List<Sommet> sommets;
   final List<Arete> aretes;
+  final Sommet? selectedSommet;
 
   ExercicesState({
     this.sommets = const [],
     this.aretes = const [],
+    this.selectedSommet,
   });
 
   ExercicesState copyWith({
     List<Sommet>? sommets,
     List<Arete>? aretes,
+    Sommet? selectedSommet,
   }) {
     return ExercicesState(
       sommets: sommets ?? this.sommets,
       aretes: aretes ?? this.aretes,
+      selectedSommet: selectedSommet,
     );
   }
 }
@@ -42,29 +46,41 @@ class ExercicesState {
 class ExercicesController extends StateNotifier<ExercicesState> {
   ExercicesController() : super(ExercicesState());
 
-  /// Ajouter un sommet
-  void ajouterSommet() {
+  /// Ajouter un sommet à une position donnée
+  void ajouterSommet(double x, double y) {
     final newSommet = Sommet(
       id: state.sommets.length,
-      x: 50 + (state.sommets.length * 40).toDouble(),
-      y: 100,
+      x: x,
+      y: y,
     );
     state = state.copyWith(sommets: [...state.sommets, newSommet]);
   }
 
-  /// Ajouter une arête entre 2 sommets
+  /// Gérer la sélection pour créer des arêtes
+  void selectSommet(Sommet s) {
+    if (state.selectedSommet == null) {
+      state = state.copyWith(selectedSommet: s);
+    } else if (state.selectedSommet!.id != s.id) {
+      ajouterArete(state.selectedSommet!.id, s.id);
+      state = state.copyWith(selectedSommet: null);
+    } else {
+      state = state.copyWith(selectedSommet: null);
+    }
+  }
+
+  /// Ajouter une arête entre 2 sommets par id
   void ajouterArete(int source, int destination) {
     final newArete = Arete(source: source, destination: destination);
     state = state.copyWith(aretes: [...state.aretes, newArete]);
   }
 
-  /// Reset
+  /// Reset complet
   void reset() {
     state = ExercicesState();
   }
 }
 
-/// 👉 Provider global
+/// Provider global
 final exercicesProvider =
 StateNotifierProvider<ExercicesController, ExercicesState>(
       (ref) => ExercicesController(),

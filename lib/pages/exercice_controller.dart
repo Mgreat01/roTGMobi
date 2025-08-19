@@ -23,13 +23,15 @@ class Arete {
 class ExercicesState {
   final List<Sommet> sommets;
   final List<Arete> aretes;
+  final List<int> highlightedPath; // chemin calculé
 
-  ExercicesState({this.sommets = const [], this.aretes = const []});
+  ExercicesState({this.sommets = const [], this.aretes = const [], this.highlightedPath = const []});
 
-  ExercicesState copyWith({List<Sommet>? sommets, List<Arete>? aretes}) {
+  ExercicesState copyWith({List<Sommet>? sommets, List<Arete>? aretes, List<int>? highlightedPath}) {
     return ExercicesState(
       sommets: sommets ?? this.sommets,
       aretes: aretes ?? this.aretes,
+      highlightedPath: highlightedPath ?? this.highlightedPath,
     );
   }
 }
@@ -120,7 +122,6 @@ class ExercicesController extends StateNotifier<ExercicesState> {
     final visited = List<bool>.filled(n, false);
 
     for (int i = 0; i < n; i++) {
-      // Trouver le sommet non visité avec distance minimale
       double minDist = double.infinity;
       int u = -1;
       for (int j = 0; j < n; j++) {
@@ -129,24 +130,19 @@ class ExercicesController extends StateNotifier<ExercicesState> {
           u = j;
         }
       }
-
       if (u == -1) break;
       visited[u] = true;
 
-      // Mettre à jour les voisins
-      for (final e in state.aretes) {
-        if (e.source == u) {
-          final v = e.destination;
-          final alt = dist[u] + e.weight;
-          if (alt < dist[v]) {
-            dist[v] = alt;
-            prev[v] = u;
-          }
+      for (final e in state.aretes.where((a) => a.source == u)) {
+        final v = e.destination;
+        final alt = dist[u] + e.weight;
+        if (alt < dist[v]) {
+          dist[v] = alt;
+          prev[v] = u;
         }
       }
     }
 
-    // Construire le chemin
     final path = <int>[];
     int? u = endId;
     while (u != null) {
@@ -154,6 +150,75 @@ class ExercicesController extends StateNotifier<ExercicesState> {
       u = prev[u];
     }
     return path;
+  }
+
+  void runDijkstraAlgo(int startId, int endId) {
+    final path = dijkstra(startId, endId);
+    state = state.copyWith(highlightedPath: path);
+  }
+
+  void runBellmanFordAlgo(int startId) {
+    final n = state.sommets.length;
+    final dist = List<double>.filled(n, double.infinity);
+    final prev = List<int?>.filled(n, null);
+    dist[startId] = 0;
+
+    for (int i = 0; i < n - 1; i++) {
+      for (final e in state.aretes) {
+        final u = e.source;
+        final v = e.destination;
+        if (dist[u] + e.weight < dist[v]) {
+          dist[v] = dist[u] + e.weight;
+          prev[v] = u;
+        }
+      }
+    }
+
+    final path = <int>[];
+    int? u = n > 0 ? n - 1 : null;
+    while (u != null) {
+      path.insert(0, u);
+      u = prev[u];
+    }
+    state = state.copyWith(highlightedPath: path);
+  }
+
+  void runDFSAlgo(int startId) {
+    final n = state.sommets.length;
+    final visited = List<bool>.filled(n, false);
+    final path = <int>[];
+
+    void dfs(int u) {
+      visited[u] = true;
+      path.add(u);
+      for (final e in state.aretes.where((a) => a.source == u)) {
+        if (!visited[e.destination]) dfs(e.destination);
+      }
+    }
+
+    dfs(startId);
+    state = state.copyWith(highlightedPath: path);
+  }
+
+  void runBFSAlgo(int startId) {
+    final n = state.sommets.length;
+    final visited = List<bool>.filled(n, false);
+    final path = <int>[];
+    final queue = <int>[];
+    queue.add(startId);
+    visited[startId] = true;
+
+    while (queue.isNotEmpty) {
+      final u = queue.removeAt(0);
+      path.add(u);
+      for (final e in state.aretes.where((a) => a.source == u)) {
+        if (!visited[e.destination]) {
+          queue.add(e.destination);
+          visited[e.destination] = true;
+        }
+      }
+    }
+    state = state.copyWith(highlightedPath: path);
   }
 
   void reset() {

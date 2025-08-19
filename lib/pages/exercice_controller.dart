@@ -1,3 +1,4 @@
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 /// Modèle d’un Sommet
@@ -13,75 +14,156 @@ class Sommet {
 class Arete {
   final int source;
   final int destination;
+  final double weight;
 
-  Arete({required this.source, required this.destination});
+  Arete({required this.source, required this.destination, this.weight = 1});
 }
 
 /// État : contient tous les sommets et arêtes
 class ExercicesState {
   final List<Sommet> sommets;
   final List<Arete> aretes;
-  final Sommet? selectedSommet;
 
-  ExercicesState({
-    this.sommets = const [],
-    this.aretes = const [],
-    this.selectedSommet,
-  });
+  ExercicesState({this.sommets = const [], this.aretes = const []});
 
-  ExercicesState copyWith({
-    List<Sommet>? sommets,
-    List<Arete>? aretes,
-    Sommet? selectedSommet,
-  }) {
+  ExercicesState copyWith({List<Sommet>? sommets, List<Arete>? aretes}) {
     return ExercicesState(
       sommets: sommets ?? this.sommets,
       aretes: aretes ?? this.aretes,
-      selectedSommet: selectedSommet,
     );
   }
 }
 
-/// Contrôleur (Notifier)
+/// Modes d’interaction
+enum Mode { none, addSommet, addArete }
+
+/// Contrôleur
 class ExercicesController extends StateNotifier<ExercicesState> {
   ExercicesController() : super(ExercicesState());
 
-  /// Ajouter un sommet à une position donnée
-  void ajouterSommet(double x, double y) {
+  Mode mode = Mode.none;
+  Sommet? selectedSommetForArete;
+
+  void setMode(Mode m) {
+    mode = m;
+    selectedSommetForArete = null;
+  }
+
+  void addSommetAt(Offset position) {
+    if (mode != Mode.addSommet) return;
     final newSommet = Sommet(
       id: state.sommets.length,
-      x: x,
-      y: y,
+      x: position.dx,
+      y: position.dy,
     );
     state = state.copyWith(sommets: [...state.sommets, newSommet]);
   }
 
-  /// Gérer la sélection pour créer des arêtes
-  void selectSommet(Sommet s) {
-    if (state.selectedSommet == null) {
-      state = state.copyWith(selectedSommet: s);
-    } else if (state.selectedSommet!.id != s.id) {
-      ajouterArete(state.selectedSommet!.id, s.id);
-      state = state.copyWith(selectedSommet: null);
-    } else {
-      state = state.copyWith(selectedSommet: null);
+  void selectSommet(Sommet s, {BuildContext? context}) async {
+    if (mode == Mode.addArete) {
+      if (selectedSommetForArete == null) {
+        selectedSommetForArete = s; // premier sommet sélectionné
+      } else {
+        // Deuxième sommet → créer arête
+        double weight = 1;
+        if (context != null) {
+          final input = await showDialog<String>(
+            context: context,
+            builder: (ctx) => AlertDialog(
+              title: const Text("Poids de l'arête"),
+              content: TextField(
+                keyboardType: TextInputType.number,
+                decoration: const InputDecoration(hintText: "Entrez le poids"),
+                onSubmitted: (value) => Navigator.pop(ctx, value),
+              ),
+            ),
+          );
+          if (input != null) weight = double.tryParse(input) ?? 1;
+        }
+        ajouterArete(selectedSommetForArete!.id, s.id, weight: weight);
+        selectedSommetForArete = null;
+      }
     }
   }
 
-  /// Ajouter une arête entre 2 sommets par id
-  void ajouterArete(int source, int destination) {
-    final newArete = Arete(source: source, destination: destination);
+  void ajouterArete(int source, int destination, {double weight = 1}) {
+    final newArete = Arete(source: source, destination: destination, weight: weight);
     state = state.copyWith(aretes: [...state.aretes, newArete]);
   }
 
-  /// Reset complet
+  void deplacerSommet(int id, double x, double y) {
+    final updated = state.sommets.map((s) {
+      if (s.id == id) return Sommet(id: s.id, x: x, y: y);
+      return s;
+    }).toList();
+    state = state.copyWith(sommets: updated);
+  }
+
+  void supprimerSommet(int id) {
+    final updatedSommets = state.sommets.where((s) => s.id != id).toList();
+    final updatedAretes = state.aretes.where((a) => a.source != id && a.destination != id).toList();
+    state = state.copyWith(sommets: updatedSommets, aretes: updatedAretes);
+  }
+
+  void supprimerArete(Arete a) {
+    final updatedAretes = state.aretes.where((ar) => ar != a).toList();
+    state = state.copyWith(aretes: updatedAretes);
+  }
+
+  /// Algorithme Dijkstra (simplifié)
+  List<int> dijkstra(int startId, int endId) {
+    final n = state.sommets.length;
+    final dist = List<double>.filled(n, double.infinity);
+    final prev = List<int?>.filled(n, null);
+    dist[startId] = 0;
+
+    final visited = List<bool>.filled(n, false);
+
+    for (int i = 0; i < n; i++) {
+      // Trouver le sommet non visité avec distance minimale
+      double minDist = double.infinity;
+      int u = -1;
+      for (int j = 0; j < n; j++) {
+        if (!visited[j] && dist[j] < minDist) {
+          minDist = dist[j];
+          u = j;
+        }
+      }
+
+      if (u == -1) break;
+      visited[u] = true;
+
+      // Mettre à jour les voisins
+      for (final e in state.aretes) {
+        if (e.source == u) {
+          final v = e.destination;
+          final alt = dist[u] + e.weight;
+          if (alt < dist[v]) {
+            dist[v] = alt;
+            prev[v] = u;
+          }
+        }
+      }
+    }
+
+    // Construire le chemin
+    final path = <int>[];
+    int? u = endId;
+    while (u != null) {
+      path.insert(0, u);
+      u = prev[u];
+    }
+    return path;
+  }
+
   void reset() {
     state = ExercicesState();
+    mode = Mode.none;
+    selectedSommetForArete = null;
   }
 }
 
 /// Provider global
-final exercicesProvider =
-StateNotifierProvider<ExercicesController, ExercicesState>(
+final exercicesProvider = StateNotifierProvider<ExercicesController, ExercicesState>(
       (ref) => ExercicesController(),
 );

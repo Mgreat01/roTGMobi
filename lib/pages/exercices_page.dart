@@ -16,24 +16,27 @@ class ExercicesPage extends ConsumerWidget {
       body: Column(
         children: [
           Expanded(
-            child: GestureDetector(
-              onTapUp: (details) {
-                controller.ajouterSommet(
-                  details.localPosition.dx,
-                  details.localPosition.dy,
-                );
-              },
-              child: GraphCanvas(
-                sommets: state.sommets,
-                aretes: state.aretes,
-                selectedSommet: state.selectedSommet,
-                onSommetTap: controller.selectSommet,
-              ),
+            child: GraphCanvas(
+              sommets: state.sommets,
+              aretes: state.aretes,
+              onCanvasTap: (pos) => controller.addSommetAt(pos),
+              onSommetTap: (s) => controller.selectSommet(s, context: context),
+              onDrag: (id, x, y) => controller.deplacerSommet(id, x, y),
             ),
           ),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
+          const SizedBox(height: 10),
+          Wrap(
+            alignment: WrapAlignment.center,
+            spacing: 10,
             children: [
+              ElevatedButton(
+                onPressed: () => controller.setMode(Mode.addSommet),
+                child: const Text("Ajouter sommet"),
+              ),
+              ElevatedButton(
+                onPressed: () => controller.setMode(Mode.addArete),
+                child: const Text("Ajouter arête"),
+              ),
               ElevatedButton(
                 onPressed: controller.reset,
                 child: const Text("Reset"),

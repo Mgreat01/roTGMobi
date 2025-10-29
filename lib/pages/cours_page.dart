@@ -6,7 +6,9 @@ class CoursPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return const Scaffold(
-      body: Center(child: Text("Page Cours")),
+      body: Center(
+        child: Text("Eza koya .........")
+        ),
     );
   }
 }

@@ -13,10 +13,71 @@ class ExercicesPage extends ConsumerWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text("Exercices Graphes"),
+        title: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.account_tree_outlined,
+              color: Colors.white,
+              size: 28,
+            ),
+            SizedBox(width: 12),
+            Text(
+              "Visualiseur de Graphes",
+              style: TextStyle(
+                fontSize: 22,
+                fontWeight: FontWeight.w700,
+                letterSpacing: 0.8,
+                shadows: [
+                  Shadow(
+                    blurRadius: 4.0,
+                    color: Colors.black.withOpacity(0.3),
+                    offset: Offset(1, 1),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
         centerTitle: true,
-        backgroundColor: Colors.blue.shade700,
-        elevation: 3,
+        backgroundColor: Colors.blue.shade800,
+        elevation: 6,
+        shadowColor: Colors.blue.shade900.withOpacity(0.5),
+        shape: ContinuousRectangleBorder(
+          borderRadius: BorderRadius.only(
+            bottomLeft: Radius.circular(30),
+            bottomRight: Radius.circular(30),
+          ),
+        ),
+        iconTheme: IconThemeData(
+          color: Colors.white,
+          size: 26,
+        ),
+        actions: [
+          Container(
+            margin: EdgeInsets.only(right: 8),
+            child: IconButton(
+              icon: Icon(Icons.info_outline, size: 24),
+              onPressed: () {
+                // Action pour afficher les informations
+              },
+              tooltip: 'Aide',
+            ),
+          ),
+        ],
+        flexibleSpace: Container(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [
+                Colors.blue.shade700,
+                Colors.blue.shade800,
+                Colors.blue.shade900,
+              ],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+          ),
+        ),
       ),
       body: Column(
         children: [
